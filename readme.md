@@ -1,264 +1,205 @@
-# 📦 Project Setup
+# Dockerized QR Code Generator
 
----
+This project is a Python QR Code Generator packaged and executed using Docker. The application accepts a URL through a command-line argument, validates the URL, generates a QR code, and saves the resulting PNG file in the `qr_codes` directory.
 
-# 🧩 1. Install Homebrew (Mac Only)
+This project was completed for Module 7 of IS 601 and demonstrates Docker image creation, container security, Docker Compose, environment-variable configuration, volume mounts, DockerHub publishing, and GitHub Actions automation.
 
-> Skip this step if you're on Windows.
+## Features
 
-Homebrew is a package manager for macOS.  
-You’ll use it to easily install Git, Python, Docker, etc.
+- Generates a QR code from a supplied URL
+- Validates URLs before generating the QR code
+- Creates timestamped PNG filenames
+- Supports configurable foreground and background colors
+- Uses environment variables for application configuration
+- Stores generated images in the `qr_codes` directory
+- Runs inside a Docker container as a non-root user
+- Supports Docker Compose
+- Includes a GitHub Actions workflow for Docker image validation
+- Published as a public DockerHub image
 
-**Install Homebrew:**
+## Project Structure
 
-```bash
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+```text
+qr-code-generator/
+├── .github/
+│   └── workflows/
+│       └── docker-build.yml
+├── qr_codes/
+├── .dockerignore
+├── .gitignore
+├── Dockerfile
+├── docker-compose.yml
+├── main.py
+├── readme.md
+└── requirements.txt
 ```
 
-**Verify Homebrew:**
+## Application Dependencies
 
-```bash
-brew --version
+The application uses the following Python packages:
+
+- `qrcode`
+- `Pillow`
+- `python-dotenv`
+- `validators`
+- `pypng`
+- `typing_extensions`
+
+The required versions are listed in `requirements.txt`.
+
+## Configuration
+
+The application supports the following environment variables:
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `QR_CODE_DIR` | `qr_codes` | Directory used to save generated QR codes |
+| `FILL_COLOR` | `red` | Foreground color of the QR code |
+| `BACK_COLOR` | `white` | Background color of the QR code |
+
+Example:
+
+```text
+QR_CODE_DIR=qr_codes
+FILL_COLOR=blue
+BACK_COLOR=white
 ```
 
-If you see a version number, you're good to go.
+## Build the Docker Image
 
----
-
-# 🧩 2. Install and Configure Git
-
-## Install Git
-
-- **MacOS (using Homebrew)**
+From the project root, run:
 
 ```bash
-brew install git
+docker build -t qr-code-generator-app .
 ```
 
-- **Windows**
-
-Download and install [Git for Windows](https://git-scm.com/download/win).  
-Accept the default options during installation.
-
-**Verify Git:**
+Verify the image:
 
 ```bash
-git --version
+docker images
 ```
 
----
+## Run the Docker Container
 
-## Configure Git Globals
-
-Set your name and email so Git tracks your commits properly:
+Run the application using the default URL:
 
 ```bash
-git config --global user.name "Your Name"
-git config --global user.email "your_email@example.com"
+docker run --name qr-generator qr-code-generator-app
 ```
 
-Confirm the settings:
+Run the application with a custom URL:
 
 ```bash
-git config --list
+docker run --name qr-generator \
+  qr-code-generator-app \
+  --url https://www.njit.edu
 ```
 
----
+The application generates one QR code and then exits. An exit code of `0` indicates that the application completed successfully.
 
-## Generate SSH Keys and Connect to GitHub
-
-> Only do this once per machine.
-
-1. Generate a new SSH key:
+View the logs:
 
 ```bash
-ssh-keygen -t ed25519 -C "your_email@example.com"
+docker logs qr-generator
 ```
 
-(Press Enter at all prompts.)
-
-2. Start the SSH agent:
+Remove the container after testing:
 
 ```bash
-eval "$(ssh-agent -s)"
+docker rm qr-generator
 ```
 
-3. Add the SSH private key to the agent:
+## Persist Generated QR Codes
+
+A volume mount allows generated QR codes to remain available on the host computer after the container exits.
+
+### PowerShell
+
+```powershell
+New-Item -ItemType Directory -Force .\qr_codes
+
+docker run --name qr-generator `
+  -v "${PWD}\qr_codes:/app/qr_codes" `
+  qr-code-generator-app `
+  --url "https://www.njit.edu"
+```
+
+### Linux or macOS
 
 ```bash
-ssh-add ~/.ssh/id_ed25519
+mkdir -p qr_codes
+
+docker run --name qr-generator \
+  -v "$(pwd)/qr_codes:/app/qr_codes" \
+  qr-code-generator-app \
+  --url "https://www.njit.edu"
 ```
 
-4. Copy your SSH public key:
+## Docker Compose
 
-- **Mac/Linux:**
+Run the application using Docker Compose:
 
 ```bash
-cat ~/.ssh/id_ed25519.pub | pbcopy
+docker compose up
 ```
 
-- **Windows (Git Bash):**
+Docker Compose builds the image, supplies the environment variables, mounts the local `qr_codes` directory, and runs the application with the configured URL.
+
+The expected log output is similar to:
+
+```text
+INFO - QR code successfully saved to /app/qr_codes/QRCode_<timestamp>.png
+```
+
+Because this is a command-line application rather than a continuously running service, the container exits after the QR code is successfully generated.
+
+## DockerHub Image
+
+The public Docker image is available at:
+
+https://hub.docker.com/r/benkaii/qr-code-generator-app
+
+Pull the image:
 
 ```bash
-cat ~/.ssh/id_ed25519.pub | clip
+docker pull benkaii/qr-code-generator-app:latest
 ```
 
-5. Add the key to your GitHub account:
-   - Go to [GitHub SSH Settings](https://github.com/settings/keys)
-   - Click **New SSH Key**, paste the key, save.
-
-6. Test the connection:
+Run the DockerHub image:
 
 ```bash
-ssh -T git@github.com
+docker run --rm \
+  benkaii/qr-code-generator-app:latest \
+  --url https://www.njit.edu
 ```
 
-You should see a success message.
+## GitHub Actions
 
----
+The workflow located at:
 
-# 🧩 3. Clone the Repository
-
-Now you can safely clone the course project:
-
-```bash
-git clone <repository-url>
-cd <repository-directory>
+```text
+.github/workflows/docker-build.yml
 ```
 
----
+runs automatically when changes are pushed to the `main` branch or submitted through a pull request. It checks out the repository and verifies that the Docker image builds successfully.
 
-# 🛠️ 4. Install Python 3.10+
+## Security Considerations
 
-## Install Python
+The Dockerfile follows several container-security practices:
 
-- **MacOS (Homebrew)**
+- Uses the smaller `python:3.12-slim-bullseye` base image
+- Installs only the dependencies listed in `requirements.txt`
+- Uses `pip install --no-cache-dir`
+- Creates a dedicated non-root user
+- Assigns ownership of writable directories to the non-root user
+- Runs the application without root privileges
+- Excludes unnecessary files using `.dockerignore`
 
-```bash
-brew install python
-```
+## Links
 
-- **Windows**
+- GitHub repository: https://github.com/Benkaii/qr-code-generator
+- DockerHub image: https://hub.docker.com/r/benkaii/qr-code-generator-app
 
-Download and install [Python for Windows](https://www.python.org/downloads/).  
-✅ Make sure you **check the box** `Add Python to PATH` during setup.
+## Author
 
-**Verify Python:**
-
-```bash
-python3 --version
-```
-or
-```bash
-python --version
-```
-
----
-
-## Create and Activate a Virtual Environment
-
-(Optional but recommended)
-
-```bash
-python3 -m venv venv
-source venv/bin/activate   # Mac/Linux
-venv\Scripts\activate.bat  # Windows
-```
-
-### Install Required Packages
-
-```bash
-pip install -r requirements.txt
-```
-
----
-
-# 🐳 5. (Optional) Docker Setup
-
-> Skip if Docker isn't used in this module.
-
-## Install Docker
-
-- [Install Docker Desktop for Mac](https://www.docker.com/products/docker-desktop/)
-- [Install Docker Desktop for Windows](https://www.docker.com/products/docker-desktop/)
-
-## Build Docker Image
-
-```bash
-docker build -t <image-name> .
-```
-
-## Run Docker Container
-
-```bash
-docker run -it --rm <image-name>
-```
-
----
-
-# 🚀 6. Running the Project
-
-- **Without Docker**:
-
-```bash
-python main.py
-```
-
-(or update this if the main script is different.)
-
-- **With Docker**:
-
-```bash
-docker run -it --rm <image-name>
-```
-
----
-
-# 📝 7. Submission Instructions
-
-After finishing your work:
-
-```bash
-git add .
-git commit -m "Complete Module X"
-git push origin main
-```
-
-Then submit the GitHub repository link as instructed.
-
----
-
-# 🔥 Useful Commands Cheat Sheet
-
-| Action                         | Command                                          |
-| ------------------------------- | ------------------------------------------------ |
-| Install Homebrew (Mac)          | `/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"` |
-| Install Git                     | `brew install git` or Git for Windows installer |
-| Configure Git Global Username  | `git config --global user.name "Your Name"`      |
-| Configure Git Global Email     | `git config --global user.email "you@example.com"` |
-| Clone Repository                | `git clone <repo-url>`                          |
-| Create Virtual Environment     | `python3 -m venv venv`                           |
-| Activate Virtual Environment   | `source venv/bin/activate` / `venv\Scripts\activate.bat` |
-| Install Python Packages        | `pip install -r requirements.txt`               |
-| Build Docker Image              | `docker build -t <image-name> .`                |
-| Run Docker Container            | `docker run -it --rm <image-name>`               |
-| Push Code to GitHub             | `git add . && git commit -m "message" && git push` |
-
----
-
-# 📋 Notes
-
-- Install **Homebrew** first on Mac.
-- Install and configure **Git** and **SSH** before cloning.
-- Use **Python 3.10+** and **virtual environments** for Python projects.
-- **Docker** is optional depending on the project.
-
----
-
-# 📎 Quick Links
-
-- [Homebrew](https://brew.sh/)
-- [Git Downloads](https://git-scm.com/downloads)
-- [Python Downloads](https://www.python.org/downloads/)
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
-- [GitHub SSH Setup Guide](https://docs.github.com/en/authentication/connecting-to-github-with-ssh)
+Ismael Albilal
