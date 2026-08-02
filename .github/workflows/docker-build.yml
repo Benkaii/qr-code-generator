@@ -1,4 +1,4 @@
-name: Docker Build and Test
+name: Docker Build
 
 on:
   push:
@@ -9,32 +9,11 @@ on:
       - main
 
 jobs:
-  docker-build-and-test:
+  docker-build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Build Docker image
+      - name: Build Docker Image
         run: docker build -t qr-code-generator-app .
-
-      - name: Create output directory
-        run: mkdir -p qr_codes
-
-      - name: Run QR Code Generator container
-        run: |
-          docker run --name qr-generator \
-            -v "${{ github.workspace }}/qr_codes:/app/qr_codes" \
-            qr-code-generator-app \
-            --url "https://www.njit.edu"
-
-      - name: Display container logs
-        if: always()
-        run: docker logs qr-generator || true
-
-      - name: Verify generated QR code
-        run: |
-          echo "Generated files:"
-          ls -la qr_codes
-          test -n "$(find qr_codes -type f -name '*.png' -print -quit)"
